@@ -109,12 +109,23 @@
     defaultVisible: boolean;
   }
 
+  let tailscaleColumns = $derived<ColMeta[]>([
+    { id: "tailscale_name", label: "User", defaultVisible: true },
+    { id: "tailscale_user_id", label: "User ID", defaultVisible: true },
+    ...($uiConfig.track_tailscale_device
+      ? [{ id: "tailscale_hostname", label: "Device", defaultVisible: true }]
+      : []),
+  ]);
+
   function buildColumnMeta(withModel: boolean, withSource: boolean): ColMeta[] {
     const cols: ColMeta[] = [
       { id: "id", label: "ID", defaultVisible: true },
       { id: "time", label: "Time", defaultVisible: true },
     ];
-    if (withSource) cols.push({ id: "src", label: "Source/Caller", defaultVisible: true });
+    if (withSource) cols.push(
+      { id: "src", label: "Source/Caller", defaultVisible: true },
+      ...tailscaleColumns
+    );
     if (withModel) cols.push({ id: "model", label: "Model", defaultVisible: true });
     cols.push(
       { id: "req_path", label: "Path", defaultVisible: false },
@@ -166,16 +177,22 @@
     $storedColumnOrder.length > 0 ? $storedColumnOrder : defaultColumnOrder
   );
 
-  // Reconcile stored order against the current column set: drop stale ids
-  // and append any new ones so all columns are always represented.
+  function reconcileColumnOrder(order: string[], columns: ColMeta[]): string[] {
+    const known = new Set(columns.map((column) => column.id));
+    const cleaned = order.filter((id) => known.has(id));
+    const missing = columns.filter((column) => !order.includes(column.id));
+    if (cleaned.length === order.length && missing.length === 0) return order;
+    for (const { id } of missing) {
+      if (id === "tailscale_user_id") cleaned.splice(cleaned.indexOf("tailscale_name") + 1, 0, id);
+      else cleaned.push(id);
+    }
+    return cleaned;
+  }
+
   $effect(() => {
-    const known = new Set(columnMeta.map((c) => c.id));
-    const order = columnOrder;
-    const hasStale = order.some((k) => !known.has(k));
-    const missing = columnMeta.filter((c) => !order.includes(c.id)).map((c) => c.id);
-    if (hasStale || missing.length > 0) {
-      const cleaned = order.filter((k) => known.has(k));
-      columnOrder = [...cleaned, ...missing];
+    const reconciled = reconcileColumnOrder(columnOrder, columnMeta);
+    if (reconciled !== columnOrder) {
+      columnOrder = reconciled;
       storedColumnOrder.set(columnOrder);
     }
   });
@@ -195,6 +212,7 @@
     cols.push(
       { id: "request", label: "Request", defaultVisible: true },
       { id: "identity", label: "Address", defaultVisible: true },
+      ...tailscaleColumns,
       { id: "user_agent", label: "User Agent", defaultVisible: true },
       { id: "session_id", label: "Session ID", defaultVisible: true },
       { id: "bytes_received", label: "Bytes Received", defaultVisible: true }
@@ -236,20 +254,13 @@
       : inflightDefaultColumnOrder
   );
   let visibleInflightColumns = $derived(
-    inflightColumnOrder.filter((id) => inflightColumnVisibility[id] !== false)
+    inflightColumnOrder.filter((id) => inflightColumnMeta.some((column) => column.id === id) && inflightColumnVisibility[id] !== false)
   );
 
   $effect(() => {
-    const known = new Set(inflightColumnMeta.map((column) => column.id));
-    const hasStale = inflightColumnOrder.some((id) => !known.has(id));
-    const missing = inflightColumnMeta
-      .filter((column) => !inflightColumnOrder.includes(column.id))
-      .map((column) => column.id);
-    if (hasStale || missing.length > 0) {
-      inflightColumnOrder = [
-        ...inflightColumnOrder.filter((id) => known.has(id)),
-        ...missing,
-      ];
+    const reconciled = reconcileColumnOrder(inflightColumnOrder, inflightColumnMeta);
+    if (reconciled !== inflightColumnOrder) {
+      inflightColumnOrder = reconciled;
       storedInflightColumnOrder.set(inflightColumnOrder);
     }
   });
@@ -360,6 +371,14 @@
         header: "Source/Caller",
         cell: ({ row }) => renderComponent(SourceCell, { source: row.original.src }),
       });
+      for (const { id, label: header } of tailscaleColumns) {
+        cols.push({
+          id,
+          header,
+          enableSorting: false,
+          cell: ({ row }) => row.original.metadata?.[id] || "-",
+        });
+      }
     }
 
     if (withModel) {
@@ -759,6 +778,8 @@
                     <MiddleEllipsis value={requestLabel} tailLength={14} className="max-w-[20rem] font-mono text-xs" />
                   {:else if columnId === "identity"}
                     <MiddleEllipsis value={request.remote_ip} tailLength={8} className="max-w-[12rem] font-mono text-xs" />
+                  {:else if columnId === "tailscale_name" || columnId === "tailscale_user_id" || columnId === "tailscale_hostname"}
+                    {request.metadata?.[columnId] || "-"}
                   {:else if columnId === "user_agent"}
                     {@const userAgent = requestHeader(request.req_headers, "User-Agent")}
                     <MiddleEllipsis value={userAgent} tailLength={18} className="max-w-[20rem] text-xs" />

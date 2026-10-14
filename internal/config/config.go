@@ -178,7 +178,14 @@ func (c *ProfileConfig) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+// TailscaleConfig enables caller attribution, independently of API-key authentication.
+type TailscaleConfig struct {
+	Enabled     bool `yaml:"enabled"`
+	TrackDevice bool `yaml:"trackDevice"`
+}
+
 type Config struct {
+	Tailscale          TailscaleConfig   `yaml:"tailscale"`
 	Tailcat            *TailcatConfig    `yaml:"tailcat"`
 	HealthCheckTimeout int               `yaml:"healthCheckTimeout"`
 	LogRequests        bool              `yaml:"logRequests"`

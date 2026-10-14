@@ -112,6 +112,10 @@ export function activityCellText(row: ActivityLogEntry, columnId: string): strin
       return row.model;
     case "src":
       return row.src || "-";
+    case "tailscale_name":
+    case "tailscale_user_id":
+    case "tailscale_hostname":
+      return row.metadata?.[columnId] || "-";
     case "req_path":
       return row.req_path || "-";
     case "resp_status_code":

@@ -139,6 +139,7 @@ export interface InFlightStats {
 }
 
 export interface UIConfig {
+  track_tailscale_device?: boolean;
   activity: {
     session_id: string[];
   };

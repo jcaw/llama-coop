@@ -501,7 +501,11 @@ func (s *Server) handleUpstream(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = remainingPath
 	r.URL.RawPath = escapedRemaining
 	// Pin the resolved model so the router skips body/query extraction.
-	*r = *r.WithContext(swaputil.SetContext(r.Context(), swaputil.ReqContextData{Model: searchName, ModelID: modelID, Metadata: make(map[string]string)}))
+	metadata := make(map[string]string)
+	if data, ok := swaputil.ReadContext(r.Context()); ok && data.Metadata != nil {
+		metadata = data.Metadata
+	}
+	*r = *r.WithContext(swaputil.SetContext(r.Context(), swaputil.ReqContextData{Model: searchName, ModelID: modelID, Metadata: metadata}))
 
 	// If the path matches an upstream.ignorePaths entry and the model is
 	// not already loaded, refuse the request without triggering a swap. The

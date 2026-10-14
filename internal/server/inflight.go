@@ -47,7 +47,8 @@ func inflightStart(r *http.Request) time.Time {
 // inflightTracker tracks in-flight model-dispatched requests and their
 // cancellable contexts.
 type inflightTracker struct {
-	nextID atomic.Uint64
+	tailscale *tailscaleResolver
+	nextID    atomic.Uint64
 
 	// mu serializes state mutations and their corresponding outbox writes so
 	// request updates keep the same order in which they were applied.
@@ -84,6 +85,9 @@ func newInflightTrackerWithPublisher(size int, publish func(swaputil.InFlightReq
 
 func (t *inflightTracker) Add(r *http.Request, cancel context.CancelFunc) string {
 	id := strconv.FormatUint(t.nextID.Add(1), 10)
+	if t.tailscale != nil {
+		t.tailscale.annotate(r)
+	}
 	entry := swaputil.InflightRequestEntry{
 		ID:          id,
 		Timestamp:   inflightStart(r),

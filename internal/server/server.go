@@ -335,6 +335,12 @@ func stripAudioAPIPrefix(r *http.Request) {
 // routes builds the mux, registers every route, and wraps the mux with the
 // global CORS middleware.
 func (s *Server) routes() {
+	s.inflight.tailscale.close()
+	s.inflight.tailscale = nil
+	if s.cfg.Tailscale.Enabled {
+		s.inflight.tailscale = newTailscaleResolver(s.shutdownCtx, s.store.Cache(), s.logs.ProxyLogs)
+		s.inflight.tailscale.trackDevice = s.cfg.Tailscale.TrackDevice
+	}
 
 	authMW := CreateAuthMiddleware(s.cfg)
 	modelMWs := []chain.Middleware{authMW, createContentTypeMiddleware()}
@@ -590,6 +596,7 @@ func (s *Server) Shutdown(timeout time.Duration) error {
 		return nil
 	}
 	s.shutdownFn()
+	s.inflight.tailscale.close()
 	if s.capcompatCancel != nil {
 		s.capcompatCancel()
 	}

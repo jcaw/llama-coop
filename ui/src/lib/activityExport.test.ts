@@ -189,7 +189,7 @@ describe("activityCellText", () => {
     resp_status_code: 500,
     resp_content_type: "text/event-stream",
     duration_ms: 2500,
-    metadata: { user: "bob", tier: "gold" },
+    metadata: { user: "bob", tier: "gold", tailscale_name: "Alice", tailscale_user_id: "9007199254740993", tailscale_hostname: "Alice’s laptop" },
     tokens: {
       cache_tokens: 1024,
       draft_tokens: 10,
@@ -205,6 +205,9 @@ describe("activityCellText", () => {
     expect(activityCellText(row, "id")).toBe("42");
     expect(activityCellText(row, "time")).toBe("2026-06-25 12:34:56");
     expect(activityCellText(row, "model")).toBe("llama-3");
+    expect(activityCellText(row, "tailscale_name")).toBe("Alice");
+    expect(activityCellText(row, "tailscale_user_id")).toBe("9007199254740993");
+    expect(activityCellText(row, "tailscale_hostname")).toBe("Alice’s laptop");
     expect(activityCellText(row, "req_path")).toBe("/v1/embeddings");
     expect(activityCellText(row, "resp_status_code")).toBe("500");
     expect(activityCellText(row, "resp_content_type")).toBe("text/event-stream");
@@ -215,7 +218,7 @@ describe("activityCellText", () => {
     expect(activityCellText(row, "prompt_speed")).toBe("123.46 t/s");
     expect(activityCellText(row, "gen_speed")).toBe("unknown");
     expect(activityCellText(row, "duration")).toBe("2.50s");
-    expect(activityCellText(row, "meta")).toBe("user=bob; tier=gold");
+    expect(activityCellText(row, "meta")).toBe("user=bob; tier=gold; tailscale_name=Alice; tailscale_user_id=9007199254740993; tailscale_hostname=Alice’s laptop");
   });
 
   it("renders dashes for empty values", () => {
@@ -226,6 +229,11 @@ describe("activityCellText", () => {
     expect(activityCellText(empty, "cached")).toBe("-");
     expect(activityCellText(empty, "drafted")).toBe("-");
     expect(activityCellText(empty, "meta")).toBe("-");
+    const legacy = entry({ metadata: { tailscale_name: "", tailscale_login: "alice@example.com", tailscale_node: "worker.example.ts.net", tailscale_tags: "tag:worker" } });
+    for (const column of ["tailscale_name", "tailscale_user_id", "tailscale_hostname"]) {
+      expect(activityCellText(empty, column)).toBe("-");
+      expect(activityCellText(legacy, column)).toBe("-");
+    }
   });
 
   it("returns an empty string for columns without a text form", () => {
@@ -317,12 +325,14 @@ describe("summaryMarkdown", () => {
 
 describe("buildActivityMarkdown", () => {
   it("puts the summary above the data table", () => {
-    const markdown = buildActivityMarkdown([entry({ id: 7, duration_ms: 1000 })], [
+    const markdown = buildActivityMarkdown([entry({ id: 7, duration_ms: 1000, metadata: { tailscale_name: "Alice", tailscale_user_id: "9007199254740993", tailscale_hostname: "Alice’s laptop" } })], [
       { id: "id", label: "ID" },
+      { id: "tailscale_name", label: "User" },
+      { id: "tailscale_user_id", label: "User ID" },
     ]);
 
     expect(markdown.startsWith("| Summary | |\n")).toBe(true);
-    expect(markdown).toContain("\n\n| ID |\n| --- |\n| 7 |");
+    expect(markdown).toContain("\n\n| ID | User | User ID |\n| --- | --- | --- |\n| 7 | Alice | 9007199254740993 |");
   });
 
   it("closes with an attribution line carrying the export timestamp", () => {

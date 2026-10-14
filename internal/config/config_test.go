@@ -1911,3 +1911,17 @@ routing:
 	require.NoError(t, err)
 	assert.Equal(t, 5, cfg.Routing.Scheduler.Settings.Fifo.Priority["gemma"])
 }
+
+func TestConfig_Tailscale(t *testing.T) {
+	cfg, err := LoadConfigFromReader(strings.NewReader("{}"))
+	require.NoError(t, err)
+	assert.False(t, cfg.Tailscale.Enabled)
+	assert.False(t, cfg.Tailscale.TrackDevice)
+	cfg, err = LoadConfigFromReader(strings.NewReader("tailscale: {enabled: true}"))
+	require.NoError(t, err)
+	assert.True(t, cfg.Tailscale.Enabled)
+	assert.False(t, cfg.Tailscale.TrackDevice)
+	cfg, err = LoadConfigFromReader(strings.NewReader("tailscale: {enabled: true, trackDevice: true}"))
+	require.NoError(t, err)
+	assert.True(t, cfg.Tailscale.TrackDevice)
+}

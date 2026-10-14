@@ -999,6 +999,23 @@
                 }
             },
             "additionalProperties": false
+        },
+        "tailscale": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Record Tailscale caller labels and user IDs in active requests and activity history. Does not change authentication."
+                },
+                "trackDevice": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Also collect and store device hostnames and show the Device column. Requires tailscale.enabled."
+                }
+            },
+            "additionalProperties": false,
+            "description": "Opt-in Tailscale caller attribution for activity tables."
         }
     },
     "allOf": [

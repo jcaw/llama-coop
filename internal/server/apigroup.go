@@ -629,7 +629,11 @@ func (s *Server) handleAPIEvents(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		sendUIConfig := func() {
-			if j, err := json.Marshal(s.cfg.UI); err == nil {
+			ui := struct {
+				config.UIConfig
+				TrackTailscaleDevice bool `json:"track_tailscale_device"`
+			}{s.cfg.UI, s.cfg.Tailscale.Enabled && s.cfg.Tailscale.TrackDevice}
+			if j, err := json.Marshal(ui); err == nil {
 				send(messageEnvelope{Type: msgTypeUIConfig, Data: string(j)})
 			}
 		}
